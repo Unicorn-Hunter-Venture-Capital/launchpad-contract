@@ -4,7 +4,6 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 
@@ -23,7 +22,7 @@ contract PreparePool is Ownable, AccessControl {
         uint256 amount;
     }
 
-    address public passport; // check
+    address public immutable passport; // check
     Pool public poolDetails;
     // storage allocation for users in the pool
     mapping(address => Allocation) public allocations;
@@ -60,6 +59,7 @@ contract PreparePool is Ownable, AccessControl {
             IERC721(passport).balanceOf(msg.sender) > 0,
             "User does not have passport"
         );
+
         // transfer funds from user to contract
         TransferHelper.safeTransferFrom(
             poolDetails.tokenPayment,
@@ -83,6 +83,8 @@ contract PreparePool is Ownable, AccessControl {
         uint256 _startDate,
         uint256 _endDate
     ) public onlyOwner {
+        require(_startDate < _endDate, "Invalid start and end date");
+        require(poolDetails.tokenPayment == address(0), "Pool already created");
         poolDetails = Pool({
             id: _id,
             name: _name,
@@ -106,6 +108,7 @@ contract PreparePool is Ownable, AccessControl {
         require(poolDetails.isRefundable, "Pool not refundable");
 
         uint256 depositedUser = deposited[msg.sender];
+        require(depositedUser > 0, "No funds deposited");
 
         // transfer funds to user
         TransferHelper.safeTransfer(
@@ -144,6 +147,7 @@ contract PreparePool is Ownable, AccessControl {
 
     function transferOwnership(address newOwner) public virtual override onlyOwner {
         require(newOwner != address(0), "Ownable: new owner is the zero address");
+        require(newOwner != owner(), "Ownable: new owner is the current owner");
         _grantRole(DEFAULT_ADMIN_ROLE, newOwner);
         _transferOwnership(newOwner);
         _revokeRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -165,6 +169,7 @@ contract PreparePool is Ownable, AccessControl {
         address _token,
         uint256 _amount
     ) public onlyOwner {
+        require(_to != address(0), "Invalid address");
         if (_token == address(0)) {
             payable(_to).transfer(_amount);
         } else {

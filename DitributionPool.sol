@@ -4,12 +4,11 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 
 contract DistributionPool is Ownable, AccessControl {
     mapping(address => uint256) public balances;
-    address tokenDistribution;
+    address public immutable tokenDistribution;
 
     bytes32 public constant managerRole = keccak256("MANAGER_ROLE");
 
@@ -21,6 +20,7 @@ contract DistributionPool is Ownable, AccessControl {
         address _tokenDistribution
     ) Ownable(initialOwner) {
         _grantRole(DEFAULT_ADMIN_ROLE, initialOwner);
+        require(_tokenDistribution != address(0), "Invalid address");
         tokenDistribution = _tokenDistribution;
     }
 
@@ -53,8 +53,8 @@ contract DistributionPool is Ownable, AccessControl {
 
     // update balances for internal user
     function _updateBalances(address _userAddress, uint256 _amount) internal {
-        balances[_userAddress] = _amount;
-        emit BalanceUpdated(_userAddress, _amount);
+        balances[_userAddress] += _amount;
+        emit BalanceUpdated(_userAddress, balances[_userAddress]);
     }
 
     function transferOwnership(
@@ -64,6 +64,7 @@ contract DistributionPool is Ownable, AccessControl {
             newOwner != address(0),
             "Ownable: new owner is the zero address"
         );
+        require(newOwner != owner(), "Ownable: new owner is the current owner");
         _grantRole(DEFAULT_ADMIN_ROLE, newOwner);
         _transferOwnership(newOwner);
         _revokeRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -85,6 +86,7 @@ contract DistributionPool is Ownable, AccessControl {
         address _token,
         uint256 _amount
     ) public onlyOwner {
+        require(_to != address(0), "Invalid address");
         if (_token == address(0)) {
             payable(_to).transfer(_amount);
         } else {
